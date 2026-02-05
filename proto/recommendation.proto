@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package recommendation;
+
+option go_package = "BecomeOverMan/internal/grpc/pb";
+
+// Recommendation service for quest and user recommendations
+service RecommendationService {
+  // Search quests by query with similarity scoring
+  rpc SearchQuests(SearchQuestsRequest) returns (SearchQuestsResponse);
+  
+  // Add quests to the recommendation system
+  rpc AddQuests(AddQuestsRequest) returns (AddQuestsResponse);
+  
+  // Add users with their completed quest IDs
+  rpc AddUsers(AddUsersRequest) returns (AddUsersResponse);
+  
+  // Get similar user recommendations
+  rpc RecommendUsers(RecommendUsersRequest) returns (RecommendUsersResponse);
+  
+  // Get quest recommendations based on user profile
+  rpc RecommendQuests(RecommendQuestsRequest) returns (RecommendQuestsResponse);
+}
+
+// SearchQuests messages
+message SearchQuestsRequest {
+  string query = 1;
+  int32 top_k = 2;
+  string category = 3;
+  string status = 4;
+}
+
+message QuestResult {
+  int32 id = 1;
+  string title = 2;
+  string description = 3;
+  string category = 4;
+  double similarity_score = 5;
+}
+
+message SearchQuestsResponse {
+  repeated QuestResult results = 1;
+}
+
+// AddQuests messages
+message Quest {
+  int32 id = 1;
+  string title = 2;
+  string description = 3;
+  string category = 4;
+}
+
+message AddQuestsRequest {
+  repeated Quest quests = 1;
+}
+
+message AddQuestsResponse {
+  string status = 1;
+  int32 added_count = 2;
+}
+
+// AddUsers messages
+message UserWithQuestIDs {
+  int32 user_id = 1;
+  repeated int32 quest_ids = 2;
+}
+
+message AddUsersRequest {
+  repeated UserWithQuestIDs users = 1;
+}
+
+message AddUsersResponse {
+  string status = 1;
+  int32 added_count = 2;
+}
+
+// RecommendUsers messages
+message RecommendUsersRequest {
+  int32 user_id = 1;
+  int32 top_k = 2;
+}
+
+message UserRecommendation {
+  int32 user_id = 1;
+  double similarity_score = 2;
+  map<string, string> explanation = 3;
+}
+
+message RecommendUsersResponse {
+  string status = 1;
+  int32 user_id = 2;
+  repeated UserRecommendation results = 3;
+}
+
+// RecommendQuests messages
+message RecommendQuestsRequest {
+  repeated int32 user_quest_ids = 1;
+  int32 top_k = 2;
+  string category = 3;
+}
+
+message QuestRecommendation {
+  int32 id = 1;
+  string title = 2;
+  string description = 3;
+  string category = 4;
+  double similarity_score = 5;
+  string explanation = 6;
+}
+
+message RecommendQuestsResponse {
+  repeated QuestRecommendation recommendations = 1;
+  map<string, string> user_profile_info = 2;
+}
