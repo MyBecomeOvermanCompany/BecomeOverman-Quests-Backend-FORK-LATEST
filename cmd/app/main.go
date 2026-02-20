@@ -2,6 +2,7 @@ package main
 
 import (
 	"BecomeOverMan/internal/handlers"
+	"BecomeOverMan/internal/integrations"
 	"log"
 	"log/slog"
 
@@ -19,13 +20,22 @@ import (
 )
 
 func main() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	slog.SetLogLoggerLevel(slog.LevelDebug) // Включаем DEBUG-логирование
 
 	db, err := sqlx.Connect("postgres", config.Cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer db.Close()
+
+	// gRPC-клиент для сервиса рекомендаций
+	grpcClient, err := integrations.NewRecommendationGRPCClient(config.Cfg.GRPCRecommendationAddr)
+	if err != nil {
+		slog.Warn("Failed to connect to recommendation gRPC service, some features will be unavailable", "error", err)
+	}
+	if grpcClient != nil {
+		defer grpcClient.Close()
+	}
 
 	techRepo := repositories.NewTechRepository(db)
 	techService := services.NewTechService(techRepo)
@@ -34,20 +44,23 @@ func main() {
 	userService := services.NewUserService(userRepo)
 
 	questRepo := repositories.NewQuestRepository(db)
-	questService := services.NewQuestService(questRepo, userRepo)
+	questService := services.NewQuestService(questRepo, userRepo, grpcClient)
 
 	r := gin.Default()
+	// Настройка CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
 
-	handlers.RegisterTechRoutes(r, techService)
-	handlers.RegisterAuthRoutes(r, userService)
-	handlers.RegisterUserRoutes(r, userService)
-	handlers.RegisterQuestRoutes(r, questService)
+	{
+		handlers.RegisterTechRoutes(r, techService, grpcClient)
+
+		handlers.RegisterUserRoutes(r, userService)
+		handlers.RegisterQuestRoutes(r, questService)
+	}
 
 	if err := r.Run("0.0.0.0:8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
