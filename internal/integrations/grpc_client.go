@@ -75,3 +75,15 @@ func (c *RecommendationGRPCClient) HealthCheck(ctx context.Context) (*pb.HealthC
 
 	return resp, nil
 }
+
+func (c *RecommendationGRPCClient) AddUsers(ctx context.Context, users []*pb.UserWithQuestIDs) (*pb.AddUsersResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	resp, err := c.client.AddUsers(ctx, &pb.AddUsersRequest{
+		Users: users,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("gRPC AddUsers failed: %w", err)
+	}
+	return resp, nil
+}

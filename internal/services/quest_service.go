@@ -45,13 +45,45 @@ func (s *QuestService) GetMyAllQuestsWithDetails(ctx context.Context, userID int
 	return s.questRepo.GetMyAllQuestsWithDetails(ctx, userID)
 }
 
-// PurchaseQuest — пока без синхронизации с рекомендательным сервисом
+// PurchaseQuest handles the purchase of a quest by a user
 func (s *QuestService) PurchaseQuest(ctx context.Context, userID, questID int) error {
 	err := s.questRepo.PurchaseQuest(ctx, userID, questID)
 	if err != nil {
 		slog.Error("Failed to purchase quest", "error", err)
 		return err
 	}
+
+	go func() {
+		questIDS, err := s.getUserQuestIDs(userID)
+		if err != nil {
+			slog.Error("Failed to get user quest IDs", "error", err, "user_id", userID)
+			return
+		}
+
+		if len(questIDS) == 0 {
+			slog.Info("User has no quests", "user_id", userID)
+		}
+
+		// gRPC вызов вместо HTTP
+		questIDsInt32 := make([]int32, len(questIDS))
+		for i, id := range questIDS {
+			questIDsInt32[i] = int32(id)
+		}
+
+		response, err := s.grpcClient.AddUsers(context.Background(), []*pb.UserWithQuestIDs{
+			{
+				UserId:   int32(userID),
+				QuestIds: questIDsInt32,
+			},
+		})
+		if err != nil {
+			slog.Error("Failed to send user quest to recommendation service via gRPC", "error", err, "user_id", userID)
+			return
+		}
+
+		slog.Info("User quest sent to recommendation service via gRPC", "user_id", userID, "response_status", response.Status)
+	}()
+
 	return nil
 }
 
@@ -135,4 +167,3 @@ func (s *QuestService) RecommendQuests(ctx context.Context, userID int) (*models
 }
 
 // заглушки чтобы Go не ругался на неиспользуемые импорты
-var _ = pb.UserWithQuestIDs{}
