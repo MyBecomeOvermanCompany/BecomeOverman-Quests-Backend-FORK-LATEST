@@ -87,3 +87,36 @@ func (c *RecommendationGRPCClient) AddUsers(ctx context.Context, users []*pb.Use
 	}
 	return resp, nil
 }
+
+// RecommendUsers — рекомендация похожих пользователей
+func (c *RecommendationGRPCClient) RecommendUsers(ctx context.Context, userID int32, topK int32) (*pb.RecommendUsersResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.RecommendUsers(ctx, &pb.RecommendUsersRequest{
+		UserId: userID,
+		TopK:   topK,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("gRPC RecommendUsers failed: %w", err)
+	}
+
+	return resp, nil
+}
+
+// RecommendQuests — рекомендация квестов для пользователя
+func (c *RecommendationGRPCClient) RecommendQuests(ctx context.Context, userQuestIDs []int32, topK int32, category string) (*pb.RecommendQuestsResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.RecommendQuests(ctx, &pb.RecommendQuestsRequest{
+		UserQuestIds: userQuestIDs,
+		TopK:         topK,
+		Category:     category,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("gRPC RecommendQuests failed: %w", err)
+	}
+
+	return resp, nil
+}
